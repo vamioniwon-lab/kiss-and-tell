@@ -7,5 +7,5 @@ app = FastAPI()
 def read_root():
     return {"status": "Backend Running"}
 
-# Register authentication routes
+# ✅ Register authentication routes
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
