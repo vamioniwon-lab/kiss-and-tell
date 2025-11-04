@@ -4,8 +4,8 @@ from .auth import router as auth_router
 app = FastAPI()
 
 @app.get("/")
-def root():
+def read_root():
     return {"status": "Backend Running"}
 
-# ✅ register routes
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
+# Register authentication routes
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
