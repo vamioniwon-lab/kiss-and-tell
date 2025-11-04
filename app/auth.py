@@ -1,22 +1,50 @@
-from datetime import datetime, timedelta
-from passlib.context import CryptContext
-import jwt
-from .settings import get_settings
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+from .database import get_db
+from . import schemas, models
+
+router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def hash_password(p: str) -> str:
-    return pwd_context.hash(p)
+@router.post("/signup", response_model=schemas.UserOut)
+def signup(payload: schemas.UserCreate, db: Session = Depends(get_db)):
+    if not payload.email and not payload.phone:
+        raise HTTPException(status_code=400, detail="Provide email or phone")
 
-def verify_password(p: str, hashed: str) -> bool:
-    return pwd_context.verify(p, hashed)
+    if payload.email:
+        existing = db.query(models.User).filter(models.User.email == payload.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
-def create_access_token(sub: str, expires_minutes: int | None = None) -> str:
-    settings = get_settings()
-    expire = datetime.utcnow() + timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": sub, "exp": expire}
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    if payload.phone:
+        existing = db.query(models.User).filter(models.User.phone == payload.phone).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Phone already registered")
 
-def decode_token(token: str) -> dict:
-    settings = get_settings()
-    return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    hashed = pwd_context.hash(payload.password)
+    user = models.User(
+        email=payload.email,
+        phone=payload.phone,
+        password=hashed,
+        display_name=payload.display_name
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.post("/login")
+def login(payload: schemas.UserCreate, db: Session = Depends(get_db)):
+    if payload.email:
+        user = db.query(models.User).filter(models.User.email == payload.email).first()
+    elif payload.phone:
+        user = db.query(models.User).filter(models.User.phone == payload.phone).first()
+    else:
+        raise HTTPException(status_code=400, detail="Provide email or phone")
+
+    if not user or not pwd_context.verify(payload.password, user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    return {"message": "Login ok", "user_id": user.id, "display_name": user.display_name}

@@ -1,48 +1,19 @@
+
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
-class UserRegister(BaseModel):
+class UserCreate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     password: str
-    display_name: str = "Anonymous"
+    display_name: Optional[str] = None
 
-class UserLogin(BaseModel):
+    model_config = {"from_attributes": True}
+
+class UserOut(BaseModel):
+    id: int
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
-    password: str
+    display_name: Optional[str] = None
 
-class ProfileIn(BaseModel):
-    age: int = 18
-    location: str = ""
-    bio: str = ""
-    intentions: List[str] = []
-    trust: float = 3.0
-    photo_url: str = ""
-
-class PactIn(BaseModel):
-    partner_id: Optional[int] = None
-    when: str = ""
-    where: str = ""
-    note: str = ""
-
-class GiftIn(BaseModel):
-    pact_code: str
-    recipient_id: Optional[int] = None
-    amount: str
-    method: str = "Wallet"
-
-class StoryIn(BaseModel):
-    pact_code: str = ""
-    category: str = "Chaotic"
-    location: str = ""
-    text: str
-    anon: bool = True
-    ratings_csv: str = "4,4,4"
-
-class ReactIn(BaseModel):
-    kind: str
+    model_config = {"from_attributes": True}
