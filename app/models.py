@@ -1,8 +1,12 @@
 from sqlalchemy import Column, Integer, String
-from .database import Base
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"extend_existing": True}
+
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    password = Column(String)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)
