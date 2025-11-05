@@ -1,8 +1,7 @@
-fastapi
-pydantic>=2.0
-pydantic-settings
-uvicorn
-sqlalchemy
-psycopg2-binary
-passlib[bcrypt]
-python-dotenv
+fastapi==0.115.4
+uvicorn==0.30.6
+SQLAlchemy==2.0.35
+pydantic==2.9.2
+pydantic-settings==2.5.2
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
