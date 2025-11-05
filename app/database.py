@@ -1,14 +1,15 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from app.settings import settings
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from .settings import settings
 
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+class Base(DeclarativeBase):
+    pass
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# SQLite needs check_same_thread=False
+connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(settings.DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
 
 def get_db():
     db = SessionLocal()
@@ -16,7 +17,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def create_db():
-    Base.metadata.create_all(bind=engine)
