@@ -23,16 +23,12 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-
-# Hash password
 def hash_password(password):
     return pwd_context.hash(password)
 
-# Verify password
 def verify_password(plain, hashed):
     return pwd_context.verify(plain, hashed)
 
-# Create token
 def create_token(data: dict):
     to_encode = data.copy()
     to_encode["exp"] = datetime.utcnow() + timedelta(hours=6)
@@ -41,8 +37,8 @@ def create_token(data: dict):
 
 @router.post("/signup")
 def signup(body: SignupRequest, db: Session = Depends(get_db)):
-    # Check if email exists
     user = db.query(models.User).filter(models.User.email == body.email).first()
+
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -50,6 +46,7 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)):
         email=body.email,
         password=hash_password(body.password),
     )
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
