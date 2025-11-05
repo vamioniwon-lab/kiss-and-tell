@@ -1,34 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from .database import get_db, User
 
-from . import models, schemas
-from .database import get_db
-from .deps import hash_password, verify_password, create_access_token
+router = APIRouter()
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+class SignupRequest(BaseModel):
+    email: str
+    password: str
 
-@router.post("/signup", response_model=schemas.UserPublic)
-def signup(payload: schemas.UserCreate, db: Session = Depends(get_db)):
-    # check duplicate
-    existing = db.query(models.User).filter(models.User.email == payload.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
-    user = models.User(email=payload.email, password_hash=hash_password(payload.password))
+
+@router.post("/signup")
+def signup(payload: SignupRequest, db: Session = Depends(get_db)):
+    user = User(email=payload.email, password=payload.password)
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return {"message": "signup ok", "email": user.email}
 
-@router.post("/login", response_model=schemas.Token)
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),  # expects form fields: username, password
-    db: Session = Depends(get_db),
-):
-    user = db.query(models.User).filter(models.User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    token = create_access_token({"sub": str(user.id)})
-    return {"access_token": token, "token_type": "bearer"}
+@router.post("/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+
+    if not user or user.password != payload.password:
+        return {"error": "Invalid login"}
+
+    return {"message": "login ok", "email": user.email}
