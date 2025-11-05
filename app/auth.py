@@ -1,42 +1,62 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.models import User
-from app.utils import hash_password, verify_password
+from passlib.context import CryptContext
+
+from app.schemas import SignupRequest, LoginRequest
+from app.database import SessionLocal, User, create_db
 
 router = APIRouter()
 
-class SignupRequest(BaseModel):
-    email: str
-    password: str
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-    
+# create DB if not exist
+create_db()
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def hash_password(password: str):
+    return pwd_context.hash(password)
+
+
+def verify_password(raw, hashed):
+    return pwd_context.verify(raw, hashed)
+
 
 @router.post("/signup")
 def signup(payload: SignupRequest, db: Session = Depends(get_db)):
-    # Check if email exists
-    existing_user = db.query(User).filter(User.email == payload.email).first()
-    if existing_user:
+    existing_email = db.query(User).filter(User.email == payload.email).first()
+    if existing_email:
         raise HTTPException(status_code=400, detail="Email already exists")
 
-    hashed_pw = hash_password(payload.password)
-    new_user = User(email=payload.email, password=hashed_pw)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    existing_username = db.query(User).filter(User.username == payload.username).first()
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Username already exists")
 
-    return {"message": "signup ok", "email": new_user.email}
+    hashed_pw = hash_password(payload.password)
+
+    user = User(username=payload.username, email=payload.email, password=hashed_pw)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {"message": "signup ok", "id": user.id}
 
 
 @router.post("/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = db.query(User).filter(User.username == payload.username).first()
 
-    if not user or not verify_password(payload.password, user.password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid username")
 
-    return {"message": "login ok", "email": user.email}
+    if not verify_password(payload.password, user.password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    return {"message": "login ok", "username": user.username}
