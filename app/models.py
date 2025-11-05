@@ -8,5 +8,5 @@ class User(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True)
+    password = Column(String)
