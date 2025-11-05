@@ -14,9 +14,7 @@ SECRET_KEY = "MY_SUPER_SECRET_KEY"
 ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
-# ===== MODELS =====
-
+# MODELS
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str
@@ -26,24 +24,20 @@ class LoginRequest(BaseModel):
     password: str
 
 
-# ===== UTILS =====
-
+# Hash password
 def hash_password(password):
-    """Hash password"""
     return pwd_context.hash(password)
 
+# Verify password
 def verify_password(plain, hashed):
-    """Verify password"""
     return pwd_context.verify(plain, hashed)
 
+# Create token
 def create_token(data: dict):
-    """Create JWT"""
     to_encode = data.copy()
     to_encode["exp"] = datetime.utcnow() + timedelta(hours=6)
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-
-# ===== ROUTES =====
 
 @router.post("/signup")
 def signup(body: SignupRequest, db: Session = Depends(get_db)):
@@ -76,6 +70,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     token = create_token({"sub": user.email})
 
     return {
+        "message": "login ok",
         "access_token": token,
         "token_type": "bearer",
         "email": user.email
