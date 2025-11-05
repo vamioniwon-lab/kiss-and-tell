@@ -1,27 +1,11 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import FastAPI
+from app.auth import router as auth_router
 
-router = APIRouter()
+app = FastAPI(title="Kiss & Tell API")
 
-class SignupRequest(BaseModel):
-    email: str
-    password: str
+@app.get("/")
+def read_root():
+    return {"status": "Backend Running"}
 
-@router.post("/signup")
-def signup(payload: SignupRequest):
-    return {
-        "message": "signup ok",
-        "email": payload.email
-    }
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-@router.post("/login")
-def login(payload: LoginRequest):
-    return {
-        "message": "login ok",
-        "email": payload.email
-    }
+# ✅ REGISTER AUTH ROUTES
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
