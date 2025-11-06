@@ -1,15 +1,22 @@
 from fastapi import FastAPI
-from app.database import create_tables
-from app.auth import router as auth_router
-from app.confession import router as confession_router
+from fastapi.middleware.cors import CORSMiddleware
+from .auth import router as auth_router
+from .confession import router as confession_router
 
 app = FastAPI()
 
-create_tables()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-app.include_router(auth_router)
-app.include_router(confession_router)
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(confession_router, prefix="/confession", tags=["Confession"])
+
 
 @app.get("/")
-def root():
+def home():
     return {"status": "running"}
