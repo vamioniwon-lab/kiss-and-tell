@@ -1,14 +1,11 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from fastapi import FastAPI
+from .auth import router as auth_router
+from .database import create_tables
 
-DATABASE_URL = "postgresql://kiss_and_tell_db_user:qzuhGUE1flC6ok37YR1zmjyQALdR86EQ@dpg-d455o81r0fns73dhoma0-a/kiss_and_tell_db"
+app = FastAPI()
 
-engine = create_engine(DATABASE_URL)
+@app.on_event("startup")
+def on_startup():
+    create_tables()
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-def create_tables():
-    from .models import Base
-    Base.metadata.create_all(bind=engine)
+app.include_router(auth_router, prefix="/auth")
