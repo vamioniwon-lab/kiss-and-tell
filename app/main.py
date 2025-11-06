@@ -1,10 +1,26 @@
 from fastapi import FastAPI
-from app.auth import router as auth_router
+from fastapi.middleware.cors import CORSMiddleware
+from .db import Base, engine
+from . import models
+from .auth import router as auth_router
 
-app = FastAPI(title="Kiss & Tell API")
+app = FastAPI(title="Kiss & Tell API", version="1.0.0")
+
+# CORS (adjust origins as needed)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Create tables once (no duplicate metadata)
+Base.metadata.create_all(bind=engine, checkfirst=True)
 
 @app.get("/")
-def read_root():
-    return {"status": "Backend Running"}
+def root():
+    return {"status": "ok"}
 
-app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+# Routers
+app.include_router(auth_router)
