@@ -4,17 +4,20 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
+import os
 
 from . import models
 from .deps import get_db
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["auth"])
 
-SECRET_KEY = "MY_SUPER_SECRET_KEY"
+SECRET_KEY = os.getenv("SECRET_KEY", "CHANGE_ME_SUPER_SECRET")
 ALGORITHM = "HS256"
+ACCESS_TOKEN_HOURS = 6
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# MODELS
+# ---- Schemas ----
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str
@@ -23,55 +26,40 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    email: EmailStr
 
-# Hash password
-def hash_password(password):
+# ---- Utils ----
+def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-# Verify password
-def verify_password(plain, hashed):
+def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
-# Create token
-def create_token(data: dict):
+def create_token(data: dict) -> str:
     to_encode = data.copy()
-    to_encode["exp"] = datetime.utcnow() + timedelta(hours=6)
+    to_encode["exp"] = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_HOURS)
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-
+# ---- Routes ----
 @router.post("/signup")
 def signup(body: SignupRequest, db: Session = Depends(get_db)):
-    # Check if email exists
-    user = db.query(models.User).filter(models.User.email == body.email).first()
-    if user:
+    exists = db.query(models.User).filter(models.User.email == body.email).first()
+    if exists:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    new_user = models.User(
-        email=body.email,
-        password=hash_password(body.password),
-    )
-    db.add(new_user)
+    user = models.User(email=body.email, password=hash_password(body.password))
+    db.add(user)
     db.commit()
-    db.refresh(new_user)
+    db.refresh(user)
+    return {"message": "signup ok", "email": user.email}
 
-    return {"message": "signup ok", "email": new_user.email}
-
-
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == body.email).first()
-
-    if not user:
+    if not user or not verify_password(body.password, user.password):
         raise HTTPException(status_code=400, detail="Invalid email or password")
-
-    if not verify_password(body.password, user.password):
-        raise HTTPException(status_code=400, detail="Invalid email or password")
-
     token = create_token({"sub": user.email})
-
-    return {
-        "message": "login ok",
-        "access_token": token,
-        "token_type": "bearer",
-        "email": user.email
-    }
+    return TokenResponse(access_token=token, email=user.email)
