@@ -1,80 +1,67 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
 from jose import jwt
+from pydantic import BaseModel, EmailStr
 
-from . import models
-from .deps import get_db
+from app.database import get_db
+from app.models import User
 
-router = APIRouter()
-
-SECRET_KEY = "MY_SUPER_SECRET_KEY"
+SECRET_KEY = "THIS_IS_YOUR_SECRET_KEY"
 ALGORITHM = "HS256"
+
+router = APIRouter(prefix="/auth", tags=["Auth"])
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# ========= REQUEST SCHEMAS ==========
-
+# ------------- SCHEMAS ------------- #
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
 
-# ========= PASSWORD HELPERS ==========
-
-def hash_password(password: str) -> str:
+# ------------- HELPERS ------------- #
+def hash_password(password: str):
     return pwd_context.hash(password)
 
-def verify_password(plain: str, hashed: str) -> bool:
+
+def verify_password(plain, hashed):
     return pwd_context.verify(plain, hashed)
 
 
-# ========= TOKEN CREATION ==========
-
-def create_token(data: dict) -> str:
-    to_encode = data.copy()
-    to_encode["exp"] = datetime.utcnow() + timedelta(days=30)
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-
-# ========= ROUTES ==========
-
+# ------------- ENDPOINTS ------------- #
 @router.post("/signup")
-def signup(
-    body: SignupRequest,
-    db: Session = Depends(get_db)
-):
-    existing = db.query(models.User).filter(models.User.email == body.email).first()
+def signup(data: SignupRequest, db: Session = Depends(get_db)):
+
+    existing = db.query(User).filter(User.email == data.email).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email already exists")
 
-    user = models.User(
-        email=body.email,
-        password=hash_password(body.password)
-    )
+    hashed = hash_password(data.password)
 
+    user = User(email=data.email, password=hashed)
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    return {"message": "signup successful", "email": user.email}
+    return {"message": "signup ok", "email": user.email}
 
 
 @router.post("/login")
-def login(
-    body: LoginRequest,
-    db: Session = Depends(get_db)
-):
-    user = db.query(models.User).filter(models.User.email == body.email).first()
+def login(data: LoginRequest, db: Session = Depends(get_db)):
 
-    if not user or not verify_password(body.password, user.password):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    token = create_token({"sub": user.email})
+    if not verify_password(data.password, user.password):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    return {"message": "login successful", "token": token}
+    token = jwt.encode({"email": user.email}, SECRET_KEY, algorithm=ALGORITHM)
+
+    return {"message": "login ok", "token": token}
