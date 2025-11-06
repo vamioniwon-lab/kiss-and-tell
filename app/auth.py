@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-import jwt  # PyJWT
+import jwt
 
 from . import models
 from .deps import get_db
@@ -35,7 +35,6 @@ def create_token(data: dict) -> str:
 
 @router.post("/signup")
 def signup(body: SignupRequest, db: Session = Depends(get_db)):
-    # check if email exists
     existing = db.query(models.User).filter(models.User.email == body.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
