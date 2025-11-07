@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException
-from sqlalchemy import text
-from app.database import engine
+from fastapi import APIRouter
+from app.database import Base, engine
+from app.models import User
 
-router = APIRouter(prefix="/__reset", tags=["RESET"])
+router = APIRouter(tags=["Maintenance"])
 
-@router.post("/users")
+@router.post("/__reset/users")
 def reset_users():
-    with engine.begin() as conn:
-        conn.execute(text("DROP TABLE IF EXISTS users;"))
-    return {"status": "users table dropped"}
+    # Drop and recreate ONLY the 'users' table
+    Base.metadata.drop_all(bind=engine, tables=[User.__table__], checkfirst=True)
+    Base.metadata.create_all(bind=engine, tables=[User.__table__])
+    return {"status": "reset-done"}
