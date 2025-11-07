@@ -1,16 +1,19 @@
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import os
 
-DATABASE_URL = os.getenv("DATABASE_URL")  # set on Render dashboard
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# pg8000 is the driver used by SQLAlchemy automatically for postgresql+pg8000
-# If your URL starts with postgresql:// it still works with pg8000 installed.
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    future=True,
-)
+engine = create_engine(DATABASE_URL, echo=False)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 Base = declarative_base()
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
