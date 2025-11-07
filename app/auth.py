@@ -1,53 +1,35 @@
+# app/auth.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
-from datetime import datetime, timedelta
-from jose import jwt
 
 from .database import get_db
 from .models import User
 from .schemas import SignupRequest, LoginRequest
-from .settings import Settings
+from .utils import hash_password, verify_password, create_token
 
 router = APIRouter()
 
-settings = Settings()
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def hash_password(password):
-    return pwd_ctx.hash(password)
-
-def verify_password(plain, hashed):
-    return pwd_ctx.verify(plain, hashed)
-
-def create_token(user_id: int):
-    payload = {
-        "sub": str(user_id),
-        "exp": datetime.utcnow() + timedelta(days=30),
-    }
-    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
-
-
 @router.post("/signup")
-def signup(data: SignupRequest, db: Session = Depends(get_db)):
-    exists = db.query(User).filter(User.email == data.email).first()
-    if exists:
+def signup(payload: SignupRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == payload.email).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Email exists")
 
-    user = User(email=data.email, password=hash_password(data.password))
-    db.add(user)
+    new_user = User(
+        email=payload.email,
+        password=hash_password(payload.password),
+    )
+    db.add(new_user)
     db.commit()
-    return {"message": "signup ok", "email": user.email}
+    db.refresh(new_user)
 
+    return {"message": "signup ok"}
 
 @router.post("/login")
-def login(data: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == data.email).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="Bad credentials")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user or not verify_password(payload.password, user.password):
+        raise HTTPException(status_code=401, detail="invalid credentials")
 
-    if not verify_password(data.password, user.password):
-        raise HTTPException(status_code=400, detail="Bad credentials")
-
-    token = create_token(user.id)
+    token = create_token({"user_id": user.id})
     return {"message": "login ok", "token": token}
