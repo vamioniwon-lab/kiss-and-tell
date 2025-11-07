@@ -1,21 +1,25 @@
-# app/confession.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
+from pydantic import BaseModel
 from .database import get_db
 from .models import Confession
-from .schemas import ConfessionRequest
 
 router = APIRouter()
 
-@router.post("/confession")
-def create_confession(payload: ConfessionRequest, db: Session = Depends(get_db)):
-    new = Confession(content=payload.content)
-    db.add(new)
-    db.commit()
-    db.refresh(new)
-    return new
+class ConfessionSchema(BaseModel):
+    title: str
+    body: str
 
-@router.get("/confession")
-def get_all(db: Session = Depends(get_db)):
+
+@router.post("/")
+def create_confession(payload: ConfessionSchema, db: Session = Depends(get_db)):
+    c = Confession(title=payload.title, body=payload.body)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+@router.get("/")
+def get_confessions(db: Session = Depends(get_db)):
     return db.query(Confession).all()
