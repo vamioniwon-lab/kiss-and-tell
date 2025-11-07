@@ -1,43 +1,38 @@
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
-from jose import jwt
-from passlib.context import CryptContext
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from .schemas import SignupRequest, LoginRequest, TokenResponse
+from .schemas import SignupRequest, LoginRequest
 from .models import User
-from .deps import get_db
-from .settings import Settings
+from .utils import hash_password, verify_password, create_access_token
+from .database import get_db
+from .settings import settings
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-settings = Settings()
-
-def hash_password(p: str) -> str:
-    return pwd_ctx.hash(p)
-
-def verify_password(p: str, h: str) -> bool:
-    return pwd_ctx.verify(p, h)
-
-def make_token(user_id: int) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": str(user_id), "exp": expire}
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
 @router.post("/signup")
-def signup(body: SignupRequest, db: Session = Depends(get_db)):
-    exists = db.query(User).filter(User.email == body.email).first()
-    if exists:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
-    user = User(email=body.email, password_hash=hash_password(body.password))
+def signup(payload: SignupRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == payload.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already exists")
+
+    user = User(email=payload.email, password=hash_password(payload.password))
     db.add(user)
     db.commit()
     db.refresh(user)
+
     return {"message": "signup ok", "email": user.email}
 
-@router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == body.email).first()
-    if not user or not verify_password(body.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or password")
-    token = make_token(user.id)
-    return TokenResponse(message="login ok", token=token)
+@router.post("/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    if not verify_password(payload.password, user.password):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    token = create_access_token(
+        {"sub": user.email},
+        expires_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+    )
+
+    return {"message": "login ok", "token": token}
