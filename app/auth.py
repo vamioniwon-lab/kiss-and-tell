@@ -1,35 +1,34 @@
-# app/auth.py
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-
+from passlib.context import CryptContext
+from datetime import datetime
 from .database import get_db
 from .models import User
-from .schemas import SignupRequest, LoginRequest
-from .utils import hash_password, verify_password, create_token
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["Auth"])
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+def hash_password(password):
+    return pwd_context.hash(password)
 
 @router.post("/signup")
-def signup(payload: SignupRequest, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == payload.email).first()
+def signup(data: UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == data.email).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Email exists")
+        raise HTTPException(status_code=400, detail="Email already exists")
 
     new_user = User(
-        email=payload.email,
-        password=hash_password(payload.password),
+        email=data.email,
+        password=hash_password(data.password),
+        created_at=datetime.utcnow(),
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-
-    return {"message": "signup ok"}
-
-@router.post("/login")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    if not user or not verify_password(payload.password, user.password):
-        raise HTTPException(status_code=401, detail="invalid credentials")
-
-    token = create_token({"user_id": user.id})
-    return {"message": "login ok", "token": token}
+    return {"message": "user created"}
