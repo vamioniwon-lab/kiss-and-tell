@@ -1,13 +1,14 @@
-# app/schemas.py
 from pydantic import BaseModel, EmailStr
 
-class SignupRequest(BaseModel):
+
+class UserCreate(BaseModel):
     email: EmailStr
     password: str
 
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
 
-class ConfessionRequest(BaseModel):
-    content: str
+class UserOut(BaseModel):
+    id: int
+    email: EmailStr
+
+    class Config:
+        orm_mode = True
