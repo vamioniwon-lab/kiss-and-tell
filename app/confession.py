@@ -1,48 +1,64 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.models import Confession
-from app.schemas import ConfessionRequest, ConfessionResponse
-from app.deps import get_current_user
+from .deps import get_db, get_current_user_id
+from .schemas import ConfessionRequest, CommentRequest
+from .models import Confession, Like, Comment
 
-router = APIRouter(prefix="/confession")
+router = APIRouter(prefix="/confession", tags=["Confession"])
 
-@router.post("/", response_model=ConfessionResponse)
-def create_confession(req: ConfessionRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    new_conf = Confession(
-        user_id=user.id if user else None,
-        content=req.content
-    )
-    db.add(new_conf)
-    db.commit()
-    db.refresh(new_conf)
-    return new_conf
-
-@router.get("/", response_model=list[ConfessionResponse])
+@router.get("/confession/")
 def get_all(db: Session = Depends(get_db)):
-    return db.query(Confession).order_by(Confession.id.desc()).all()
+    items = db.query(Confession).order_by(Confession.id.desc()).all()
+    result = []
+    for c in items:
+        result.append({
+            "id": c.id,
+            "message": c.message,
+            "likes": db.query(Like).filter(Like.confession_id == c.id).count(),
+            "comments": db.query(Comment).filter(Comment.confession_id == c.id).count(),
+        })
+    return result
 
-@router.get("/{confession_id}", response_model=ConfessionResponse)
+@router.get("/confession/{confession_id}")
 def get_one(confession_id: int, db: Session = Depends(get_db)):
-    conf = db.query(Confession).filter(Confession.id == confession_id).first()
-    if not conf:
-        raise HTTPException(status_code=404, detail="Not found")
-    return conf
+    c = db.query(Confession).filter(Confession.id == confession_id).first()
+    if not c:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    comments = db.query(Comment).filter(Comment.confession_id == c.id).order_by(Comment.id.asc()).all()
+    return {
+        "id": c.id,
+        "message": c.message,
+        "likes": db.query(Like).filter(Like.confession_id == c.id).count(),
+        "comments": [{"id": m.id, "message": m.message} for m in comments],
+    }
 
-@router.post("/{confession_id}/like")
-def like(confession_id: int, db: Session = Depends(get_db)):
-    conf = db.query(Confession).filter(Confession.id == confession_id).first()
-    if not conf:
-        raise HTTPException(status_code=404, detail="Not found")
-    conf.likes += 1
+@router.post("/confession/")
+def create(body: ConfessionRequest, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    c = Confession(message=body.message, user_id=user_id)
+    db.add(c)
     db.commit()
-    return {"message": "liked"}
+    db.refresh(c)
+    return {"id": c.id, "message": c.message, "likes": 0, "comments": []}
 
-@router.post("/{confession_id}/comment")
-def comment(confession_id: int, db: Session = Depends(get_db)):
-    conf = db.query(Confession).filter(Confession.id == confession_id).first()
-    if not conf:
-        raise HTTPException(status_code=404, detail="Not found")
-    conf.comments += 1
+@router.post("/confession/{confession_id}/like")
+def like(confession_id: int, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    exists = db.query(Confession).filter(Confession.id == confession_id).first()
+    if not exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    has = db.query(Like).filter(Like.confession_id == confession_id, Like.user_id == user_id).first()
+    if has:
+        return {"status": "ok", "liked": True}
+    db.add(Like(confession_id=confession_id, user_id=user_id))
     db.commit()
-    return {"message": "comment added"}
+    return {"status": "ok", "liked": True}
+
+@router.post("/confession/{confession_id}/comment")
+def comment(confession_id: int, body: CommentRequest, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    exists = db.query(Confession).filter(Confession.id == confession_id).first()
+    if not exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    cm = Comment(confession_id=confession_id, user_id=user_id, message=body.message)
+    db.add(cm)
+    db.commit()
+    db.refresh(cm)
+    return {"id": cm.id, "message": cm.message}
