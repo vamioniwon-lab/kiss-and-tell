@@ -3,6 +3,5 @@ uvicorn
 sqlalchemy
 pg8000
 passlib[argon2]
-pydantic
+pydantic[email]
 python-jose
-email-validator
