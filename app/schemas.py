@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from datetime import datetime
 
 class SignupRequest(BaseModel):
     email: EmailStr
@@ -8,12 +9,14 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-class TokenResponse(BaseModel):
-    message: str
-    token: str
-
 class ConfessionRequest(BaseModel):
-    message: str
+    content: str
 
-class CommentRequest(BaseModel):
-    message: str
+class ConfessionResponse(BaseModel):
+    id: int
+    content: str
+    created_at: datetime
+    owner_id: int
+
+    class Config:
+        orm_mode = True
