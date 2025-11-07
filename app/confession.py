@@ -1,26 +1,21 @@
+# app/confession.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from .database import get_db
 from .models import Confession
-from .schemas import ConfessionRequest, ConfessionResponse
+from .schemas import ConfessionRequest
 
-router = APIRouter(prefix="/confession", tags=["Confession"])
+router = APIRouter()
 
-@router.post("/", response_model=ConfessionResponse)
+@router.post("/confession")
 def create_confession(payload: ConfessionRequest, db: Session = Depends(get_db)):
-    confession = Confession(content=payload.content, owner_id=1)   # future = JWT
-    db.add(confession)
+    new = Confession(content=payload.content)
+    db.add(new)
     db.commit()
-    db.refresh(confession)
-    return confession
+    db.refresh(new)
+    return new
 
-@router.get("/", response_model=list[ConfessionResponse])
+@router.get("/confession")
 def get_all(db: Session = Depends(get_db)):
     return db.query(Confession).all()
-
-@router.get("/{confession_id}", response_model=ConfessionResponse)
-def get_one(confession_id: int, db: Session = Depends(get_db)):
-    confession = db.query(Confession).filter(Confession.id == confession_id).first()
-    if not confession:
-        raise HTTPException(status_code=404, detail="Not found")
-    return confession
