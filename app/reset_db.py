@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.database import engine, Base
 from sqlalchemy import text
 
-router = APIRouter()
+router = APIRouter(tags=["Maintenance"])
 
 @router.post("/__reset/all")
 def reset_all():
