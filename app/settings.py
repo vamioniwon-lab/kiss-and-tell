@@ -1,9 +1,9 @@
-from pydantic_settings import BaseSettings
+import os
+from pydantic import BaseModel
 
-class Settings(BaseSettings):
-    SECRET_KEY: str = "change_this_key"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    DATABASE_URL: str
+class Settings(BaseModel):
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "change_this")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
 
-    class Config:
-        env_file = ".env"
+settings = Settings()
