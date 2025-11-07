@@ -1,20 +1,25 @@
-# app/utils.py
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt
 
-pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = "secret"
-ALGO = "HS256"
+SECRET_KEY = "CHANGE_THIS_TO_ANY_RANDOM_TEXT"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
-def hash_password(password: str) -> str:
-    return pwd.hash(password)
 
-def verify_password(password: str, hashed: str) -> bool:
-    return pwd.verify(password, hashed)
+def hash_password(password: str):
+    return pwd_context.hash(password)
 
-def create_token(data: dict, expires_mins: int = 60):
+
+def verify_password(password: str, hashed: str):
+    return pwd_context.verify(password, hashed)
+
+
+def create_access_token(data: dict):
     to_encode = data.copy()
-    to_encode["exp"] = datetime.utcnow() + timedelta(minutes=expires_mins)
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGO)
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
