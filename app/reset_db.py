@@ -1,12 +1,13 @@
 from fastapi import APIRouter
-from app.database import Base, engine
-from app.models import User
+from app.database import engine, Base
+from sqlalchemy import text
 
-router = APIRouter(tags=["Maintenance"])
+router = APIRouter()
 
-@router.post("/__reset/users")
-def reset_users():
-    # Drop and recreate ONLY the 'users' table
-    Base.metadata.drop_all(bind=engine, tables=[User.__table__], checkfirst=True)
-    Base.metadata.create_all(bind=engine, tables=[User.__table__])
-    return {"status": "reset-done"}
+@router.post("/__reset/all")
+def reset_all():
+    with engine.connect() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    Base.metadata.create_all(bind=engine)
+    return {"status": "ALL TABLES RESET"}
