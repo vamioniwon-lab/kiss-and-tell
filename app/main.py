@@ -6,3 +6,5 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 app.include_router(auth_router)
+from app.reset_db import router as reset_router
+app.include_router(reset_router)
