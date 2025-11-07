@@ -1,21 +1,19 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 class SignupRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
+class TokenResponse(BaseModel):
+    message: str
+    token: str
+
 class ConfessionRequest(BaseModel):
-    content: str
+    message: str
 
-class ConfessionResponse(BaseModel):
-    id: int
-    content: str
-    likes: int
-    comments: int
-
-    class Config:
-        orm_mode = True
+class CommentRequest(BaseModel):
+    message: str
