@@ -7,9 +7,10 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# Routes
 app.include_router(auth_router)
 app.include_router(reset_router)
 
 @app.get("/")
 def root():
-    return {"message": "Hello from Kiss & Tell backend"}
+    return {"message": "Hello from Kiss & Tell API"}
