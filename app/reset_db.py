@@ -7,7 +7,9 @@ router = APIRouter(tags=["Maintenance"])
 @router.post("/__reset/all")
 def reset_all():
     with engine.connect() as conn:
-        conn.execute(text("DROP SCHEMA public CASCADE;"))
-        conn.execute(text("CREATE SCHEMA public;"))
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+        conn.commit()
+
     Base.metadata.create_all(bind=engine)
     return {"status": "✅ Database reset successfully"}
