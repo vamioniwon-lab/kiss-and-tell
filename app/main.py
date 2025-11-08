@@ -3,6 +3,7 @@ from app.database import engine, Base
 from app.auth import router as auth_router
 from app.maintenance import router as maintenance_router
 
+# Create all tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -13,4 +14,4 @@ app.include_router(maintenance_router)
 
 @app.get("/")
 def root():
-    return {"message": "Kiss & Tell API running!"}
+    return {"message": "Kiss & Tell API is live"}
