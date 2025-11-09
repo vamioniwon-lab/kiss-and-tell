@@ -1,5 +1,6 @@
 from fastapi import Depends
 from fastapi import FastAPI
+from app.database import get_db
 from app.auth import router as auth_router
 from app.confession import router as confession_router
 
