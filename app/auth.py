@@ -31,11 +31,12 @@ class UserLogin(BaseModel):
 
 # password hash
 def hash_password(password: str):
+    # bcrypt only allows 72 bytes max
+    password = password[:72]
     return pwd_context.hash(password)
 
-
-# verify password
 def verify_password(plain, hashed):
+    plain = plain[:72]
     return pwd_context.verify(plain, hashed)
 
 
