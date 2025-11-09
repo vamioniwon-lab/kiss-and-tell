@@ -5,4 +5,4 @@ passlib[argon2]
 pydantic[email]
 python-jose
 pg8000
-bcrypt
+bcrypt==4.1.2
