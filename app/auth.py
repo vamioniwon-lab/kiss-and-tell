@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta
+from pydantic import BaseModel
 
 from app.models import User
 from app.database import get_db
@@ -15,7 +16,20 @@ SECRET_KEY = "kiss-and-tell-secret"
 ALGORITHM = "HS256"
 
 
-# hash password
+# ------------------------------
+# SCHEMAS
+# ------------------------------
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+# password hash
 def hash_password(password: str):
     return pwd_context.hash(password)
 
@@ -32,9 +46,12 @@ def create_token(data: dict):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-# SIGN UP
+# SIGNUP
 @router.post("/signup")
-def signup(email: str, password: str, db: Session = Depends(get_db)):
+def signup(payload: UserCreate, db: Session = Depends(get_db)):
+    email = payload.email
+    password = payload.password
+
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -53,7 +70,10 @@ def signup(email: str, password: str, db: Session = Depends(get_db)):
 
 # LOGIN
 @router.post("/login")
-def login(email: str, password: str, db: Session = Depends(get_db)):
+def login(payload: UserLogin, db: Session = Depends(get_db)):
+    email = payload.email
+    password = payload.password
+
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
